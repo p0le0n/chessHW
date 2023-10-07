@@ -6,6 +6,7 @@
 #include <cctype>
 
 const int BOARD_SIZE = 8;
+const int count_of_moves = 3;
 
 const char KING = 'K';
 const char ROOK = 'R';
@@ -47,7 +48,7 @@ void generateRandomPosition(std::vector<std::vector<Piece>>& board) {
     }
 
     // Определение максимального количества фигур каждого вида
-    const int maxPieces[] = { 0, 2, 2, 2, 8 }; // Король (генерируется отдельно), ладья, слон, конь, пешенки
+    const int maxPieces[] = { 0, 4, 4, 4, 16 }; // Король (генерируется отдельно), ладья, слон, конь, пешенки
 
     // Счетчики для фигур каждого вида
     int pieceCount[5] = { 0 }; // Король, ладья, слон, конь, пешенки
@@ -79,14 +80,33 @@ void generateRandomPosition(std::vector<std::vector<Piece>>& board) {
                         pieceSymbol = KNIGHT;
                         break;
                     case 4:
-                        pieceSymbol = PAWN;
+                        if (row == 0) {
+                            pieceSymbol = PAWN;
+                            pieceSymbol = std::tolower(pieceSymbol);
+                            isWhite = false;
+                        }
+                        if (row == BOARD_SIZE) {
+                            pieceSymbol = PAWN;
+                            pieceSymbol = std::toupper(pieceSymbol);
+                            isWhite = true;
+                        }
+                        else {
+                            if (std::rand() % 2 == 0) {
+                                pieceSymbol = std::tolower(PAWN); // Черные пешки
+                                isWhite = false;
+                            }
+                            else {
+                                pieceSymbol = std::toupper(PAWN); // Белые пешки
+                                isWhite = true;
+                            }
+                        }
                         break;
                     default:
                         break;
                     }
 
-                    // Размещаем фигуру случайным образом у белых или черных
-                    if (std::rand() % 2 == 0) {
+                    // Размещаем фигуру случайным образом у белых или черных (пешки - отдельно)
+                    if (std::rand() % 2 == 0 && pieceSymbol != std::toupper(PAWN) && pieceSymbol != std::tolower(PAWN)) {
                         pieceSymbol = std::tolower(pieceSymbol); // Черные фигуры
                         isWhite = false;
                     }
@@ -256,6 +276,10 @@ bool isValidMove(const std::vector<std::vector<Piece>>& board, int fromRow, int 
 
     if (board[toRow][toCol].isWhite == isWhite) {
         return false;  // Фигура того же цвета
+    }
+    
+    if (board[toRow][toCol].symbol == std::toupper(KING) || board[toRow][toCol].symbol == std::tolower(KING)) {
+        return false;  // Нельзя есть короля
     }
 
     const Piece& movingPiece = board[fromRow][fromCol];
@@ -513,7 +537,7 @@ std::vector<std::pair<int, int>> findBestMoves(const std::vector<std::vector<Pie
             if (board[fromRow][fromCol].isWhite == isWhite) {
                 for (int toRow = 0; toRow < BOARD_SIZE; ++toRow) {
                     for (int toCol = 0; toCol < BOARD_SIZE; ++toCol) {
-                        if (isValidMove(board, fromRow, fromCol, toRow, toCol, isWhite)) {
+                        if (isValidMove(board, fromRow, fromCol, toRow, toCol, isWhite) && board[fromRow][fromCol].symbol != '.') {
                             allMoves.push_back(std::make_pair(fromRow * 10 + fromCol, toRow * 10 + toCol));
                         }
                     }
@@ -529,11 +553,9 @@ std::vector<std::pair<int, int>> findBestMoves(const std::vector<std::vector<Pie
         return eval1 > eval2;
     });
 
-    int try_count = 0;
-
-    // Выбор трёх лучших ходов
+    // Выбор лучших ходов
     std::vector<std::pair<int, int>> bestMoves;
-    for (size_t i = 0; i < 3; ++i) {
+    for (size_t i = 0; i < count_of_moves; ++i) {
         if (i < allMoves.size()) {
             bestMoves.push_back(allMoves[i]);
         }
@@ -544,6 +566,7 @@ std::vector<std::pair<int, int>> findBestMoves(const std::vector<std::vector<Pie
 }
 
 void printMoves(const std::vector<std::vector<Piece>>& board, const std::vector<std::pair<int, int>>& moves) {
+    int move_index = 1;
     for (const auto& move : moves) {
         int fromRow = move.first / 10;
         int fromCol = move.first % 10;
@@ -553,7 +576,8 @@ void printMoves(const std::vector<std::vector<Piece>>& board, const std::vector<
         const char colLetters[8]{'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'};
 
         if (isValidCell(fromRow, fromCol) && isValidCell(toRow, toCol)) {
-            std::cout << board[fromRow][fromCol].symbol << ": " << colLetters[fromCol] << fromRow + 1 << " - " << colLetters[toCol] << toRow + 1 << std::endl;
+            std::cout << move_index << ") " << board[fromRow][fromCol].symbol << ": " << colLetters[fromCol] << fromRow + 1 << " - " << colLetters[toCol] << toRow + 1 << std::endl;
+            move_index++;
         }
         else {
             // Вывести сообщение об ошибке, если координаты недопустимы
@@ -564,53 +588,107 @@ void printMoves(const std::vector<std::vector<Piece>>& board, const std::vector<
 
 int main() {
     setlocale(LC_ALL, "Russian");
-
+    
     std::srand(static_cast<unsigned int>(std::time(nullptr)));
     std::vector<std::pair<int, int>> bestMoves;
     bool isWhiteToMove, success;
-    int fromRow, fromCol;
+    int fromRow, fromCol, fr, fc, tr, tc, move_i;
+    const char colLetters[8]{ 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H' };
 
     std::vector<std::vector<Piece>> board(BOARD_SIZE, std::vector<Piece>(BOARD_SIZE));
 
+    // Определение цвета игрока
+    isWhiteToMove = true; // Играют белые
+
+    fromRow = 0;
+    fromCol = 0;
+
+    generateRandomPosition(board);
+
+    // Поиск и вывод девяти лучших ходов
+
+    bestMoves = findBestMoves(board, isWhiteToMove);
+
+    while (fromRow < BOARD_SIZE) {
+        success = true;
+        while (fromCol < BOARD_SIZE) {
+            if (isCheck(board, fromRow, fromCol, !isWhiteToMove) || isCheck(board, fromRow, fromCol, isWhiteToMove) || bestMoves.size() < count_of_moves) {
+                generateRandomPosition(board);
+                bestMoves = findBestMoves(board, isWhiteToMove);
+                fromRow = 0;
+                fromCol = 0;
+                success = false;
+            }
+            else fromCol++;
+        }
+        if (success) {
+            fromCol = 0;
+            fromRow++;
+        }
+    }
+
+    std::vector<std::pair<int, int>> origBM(bestMoves);
+    std::vector<std::pair<int, int>> madeMoves;
+    
+    madeMoves.push_back(origBM[0]);
+    madeMoves.push_back(origBM[1]);
+    madeMoves.push_back(origBM[2]);
+
+    std::cout << "Сгенерированное шахматное поле: " << std::endl;
+    printBoard(board);
+
+    std::cout << std::endl;
+    std::cout << "Лучшие ходы:" << std::endl;
+    printMoves(board, bestMoves);
+    std::cout << std::endl << std::endl;
+
     for (int i = 0; i < 3; ++i) {
 
-        // Определение цвета игрока
-        isWhiteToMove = true; // Играют белые
+        std::vector<std::vector<Piece>> temp_board(board);
 
-        fromRow = 0;
-        fromCol = 0;
+        std::cout << "РАЗВИВАЕМ ХОД НОМЕР " << i + 1 << ": " << std::endl << std::endl;
 
-        generateRandomPosition(board);
+        fr = origBM[i].first / 10;
+        fc = origBM[i].first % 10;
+        tr = origBM[i].second / 10;
+        tc = origBM[i].second % 10;
 
-        // Поиск и вывод трех лучших ходов из трёх сценариев
+        std::cout << temp_board[fr][fc].symbol << ": " << colLetters[fc] << fr + 1 << " - " << colLetters[tc] << tr + 1 << std::endl;
 
-        bestMoves = findBestMoves(board, isWhiteToMove);
+        temp_board[tr][tc].symbol = temp_board[fr][fc].symbol;
+        temp_board[tr][tc].isWhite = true;
+        temp_board[fr][fc].symbol = '.';
 
-        while (fromRow < BOARD_SIZE) {
-            success = true;
-            while (fromCol < BOARD_SIZE) {
-                if (isCheck(board, fromRow, fromCol, !isWhiteToMove) || isCheck(board, fromRow, fromCol, isWhiteToMove) || bestMoves.size() < 3) {
-                    generateRandomPosition(board);
-                    bestMoves = findBestMoves(board, isWhiteToMove);
-                    fromRow = 0;
-                    fromCol = 0;
-                    success = false;
-                }
-                else fromCol++;
-            }
-            if (success) {
-                fromCol = 0;
-                fromRow++;
-            }
-        }
-
-        std::cout << "Сгенерированное шахматное поле №" << i+1 << ": " << std::endl;
-        printBoard(board);
-
-        std::cout << std::endl;
-        std::cout << "Лучшие ходы:" << std::endl;
-        printMoves(board, bestMoves);
+        printBoard(temp_board);
         std::cout << std::endl << std::endl;
+
+        for (int j = 0; j < 2; ++j) {
+
+            bestMoves = findBestMoves(temp_board, isWhiteToMove);
+            
+            move_i = 0;
+            
+            while (count(madeMoves.begin(), madeMoves.end(), bestMoves[move_i]) > 0) {
+            	move_i++;
+            }
+            
+            madeMoves.push_back(bestMoves[move_i]);
+
+            fr = bestMoves[move_i].first / 10;
+            fc = bestMoves[move_i].first % 10;
+            tr = bestMoves[move_i].second / 10;
+            tc = bestMoves[move_i].second % 10;
+
+            std::cout << temp_board[fr][fc].symbol << ": " << colLetters[fc] << fr + 1 << " - " << colLetters[tc] << tr + 1 << std::endl;
+
+            temp_board[tr][tc].symbol = temp_board[fr][fc].symbol;
+            temp_board[tr][tc].isWhite = true;
+            temp_board[fr][fc].symbol = '.';
+
+            printBoard(temp_board);
+            std::cout << std::endl << std::endl;
+
+        }
 
     }
 
