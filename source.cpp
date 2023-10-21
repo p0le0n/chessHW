@@ -262,36 +262,36 @@ bool isValidMove(const std::vector<std::vector<Piece>>& board, int fromRow, int 
         char targetPieceSymbol = std::tolower(targetPiece.symbol);
 
         if (piece == PAWN) {
-            return isValidPawnMove(board, fromRow, fromCol, toRow, toCol, isWhite);
+            return isValidPawnMove(board, fromRow, fromCol, toRow, toCol, true);
         }
         else if (piece == KING) {
-            return isValidKingMove(board, fromRow, fromCol, toRow, toCol, isWhite);
+            return isValidKingMove(board, fromRow, fromCol, toRow, toCol, true);
         }
         else if (piece == BISHOP) {
-            return isValidBishopMove(board, fromRow, fromCol, toRow, toCol, isWhite);
+            return isValidBishopMove(board, fromRow, fromCol, toRow, toCol, true);
         }
         else if (piece == ROOK) {
-            return isValidRookMove(board, fromRow, fromCol, toRow, toCol, isWhite);
+            return isValidRookMove(board, fromRow, fromCol, toRow, toCol, true);
         }
         else if (piece == KNIGHT) {
-            return isValidKnightMove(board, fromRow, fromCol, toRow, toCol, isWhite);
+            return isValidKnightMove(board, fromRow, fromCol, toRow, toCol, true);
         }
     }
     else if (targetPiece.symbol == EMPTY || targetPiece.isWhite == true) {
         if (piece == PAWN) {
-            return isValidPawnMove(board, fromRow, fromCol, toRow, toCol, isWhite);
+            return isValidPawnMove(board, fromRow, fromCol, toRow, toCol, true);
         }
         else if (piece == KING) {
-            return isValidKingMove(board, fromRow, fromCol, toRow, toCol, isWhite);
+            return isValidKingMove(board, fromRow, fromCol, toRow, toCol, true);
         }
         else if (piece == BISHOP) {
-            return isValidBishopMove(board, fromRow, fromCol, toRow, toCol, isWhite);
+            return isValidBishopMove(board, fromRow, fromCol, toRow, toCol, true);
         }
         else if (piece == ROOK) {
-            return isValidRookMove(board, fromRow, fromCol, toRow, toCol, isWhite);
+            return isValidRookMove(board, fromRow, fromCol, toRow, toCol, true);
         }
         else if (piece == KNIGHT) {
-            return isValidKnightMove(board, fromRow, fromCol, toRow, toCol, isWhite);
+            return isValidKnightMove(board, fromRow, fromCol, toRow, toCol, true);
         }
     }
 
@@ -321,6 +321,9 @@ bool isCheck(const std::vector<std::vector<Piece>>& board, int fromRow, int from
     if (board[fromRow][fromCol].isWhite != isWhite && board[fromRow][fromCol].symbol != EMPTY) {
         if (isValidMove(board, fromRow, fromCol, kingRow, kingCol, !isWhite)) {
             return true;  // Король под шахом
+        }
+        else if (board[fromRow][fromCol].symbol == std::tolower(PAWN) && kingRow == fromRow + 1 && (kingCol == fromCol + 1 || kingCol == fromCol - 1)) {
+            return true; 
         }
      }
 
@@ -375,13 +378,12 @@ bool canCapturePiece(const std::vector<std::vector<Piece>>& board, int row, int 
 
     // В данной реализации предполагается, что все фигуры могут съесть фигуру на клетке (кроме короля)
     char attackingPiece = std::toupper(board[row][col].symbol);
-    char targetPiece = std::toupper(board[row][col].symbol);
-
+    
     if (attackingPiece == KING) {
         return false;  // Король не может съесть фигуру
     }
 
-    return attackingPiece != targetPiece;  // Сравниваем типы фигур, чтобы король не мог съесть фигуру того же типа
+    return true;  // Фигура может съесть фигуру на заданной клетке
 }
 
 bool canSavePiece(const std::vector<std::vector<Piece>>& board, int row, int col, bool isWhite) {
@@ -513,31 +515,14 @@ std::vector<std::pair<int, int>> findBestMoves(const std::vector<std::vector<Pie
         }
     }
     
-    std::pair<int, int> checkMove;
-    bool isCheckPresent = false;
     std::vector<std::pair<int, int>> bestMoves;
 
     // Сортировка ходов по оценке, используя evaluateMove
     std::sort(allMoves.begin(), allMoves.end(), [&](const std::pair<int, int>& move1, const std::pair<int, int>& move2) {
         int eval1 = evaluateMove(board, move1.first / 10, move1.first % 10, move1.second / 10, move1.second % 10, isWhite);
         int eval2 = evaluateMove(board, move2.first / 10, move2.first % 10, move2.second / 10, move2.second % 10, isWhite);
-        if (eval1 >= 2000) {
-            checkMove.first = move1.first;
-            checkMove.second = move1.second;
-            isCheckPresent = true;
-        }
-        if (eval2 >= 2000) {
-            checkMove.first = move2.first;
-            checkMove.second = move2.second;
-            isCheckPresent = true;
-        }
         return eval1 > eval2;
     });
-    
-    if (isCheckPresent) {
-    	bestMoves.push_back(checkMove);
-    	return bestMoves;
-    }
 
     // Выбор лучших ходов
     for (size_t i = 0; i < count_of_moves; ++i) {
@@ -576,7 +561,7 @@ int main() {
     
     std::srand(static_cast<unsigned int>(std::time(nullptr)));
     std::vector<std::pair<int, int>> bestMoves;
-    bool isWhiteToMove, success, flag;
+    bool isWhiteToMove, success, flag, isCheckPresent;
     int fromRow, fromCol, fr, fc, tr, tc, move_i;
     const char colLetters[8]{ 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H' };
 
@@ -681,9 +666,21 @@ int main() {
         for (int j = 0; j < 2; ++j) {
 
             bestMoves = findBestMoves(temp_board, isWhiteToMove);
+            move_i = 0;
             
-            if (bestMoves.size() == 1) {
+            isCheckPresent = false;
+            
+            for (int row = 0; row < BOARD_SIZE; ++row) {
+        	for (int col = 0; col < BOARD_SIZE; ++col) {
+            	    if (isCheck(temp_board, row, col, !isWhiteToMove)) {
+            	        isCheckPresent = true;
+            	    }
+        	}
+    	    }
+    
+            if (isCheckPresent) {
             	std::cout << "НАЙДЕН ШАХ!" << std::endl << std::endl;
+            	break;
             }
             else {
 		move_i = 0;
