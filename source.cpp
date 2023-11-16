@@ -88,10 +88,12 @@ void generateRandomPosition(std::vector<std::vector<Piece>>& board, int arr[]) {
 		                pieceSymbol = pieceChoice == 4 ? 'r' : (pieceChoice == 5 ? 'b' : (pieceChoice == 6 ? 'n' : 'p'));
 		                isWhite = false;
 		            }
-
-		            // Размещаем фигуру на доске и обновляем счетчик
-		            board[row][col] = Piece(pieceSymbol, isWhite);
-		            maxPieces[pieceChoice]--;
+		            
+		            if (!(pieceSymbol == 'P' && row == 0) && !(pieceSymbol == 'p' && row == BOARD_SIZE-1) && !(pieceSymbol == 'P' && row == BOARD_SIZE-1) && !(pieceSymbol == 'p' && row == 0)) {
+			        // Размещаем фигуру на доске и обновляем счетчик
+		                board[row][col] = Piece(pieceSymbol, isWhite);
+		                maxPieces[pieceChoice]--;
+		            }
 		        }
 		    }
 		}
@@ -258,43 +260,22 @@ bool isValidMove(const std::vector<std::vector<Piece>>& board, int fromRow, int 
 
     char piece = std::toupper(movingPiece.symbol);
 
-    if (!targetPiece.isWhite) {
-        char targetPieceSymbol = std::tolower(targetPiece.symbol);
-
-        if (piece == PAWN) {
-            return isValidPawnMove(board, fromRow, fromCol, toRow, toCol, true);
-        }
-        else if (piece == KING) {
-            return isValidKingMove(board, fromRow, fromCol, toRow, toCol, true);
-        }
-        else if (piece == BISHOP) {
-            return isValidBishopMove(board, fromRow, fromCol, toRow, toCol, true);
-        }
-        else if (piece == ROOK) {
-            return isValidRookMove(board, fromRow, fromCol, toRow, toCol, true);
-        }
-        else if (piece == KNIGHT) {
-            return isValidKnightMove(board, fromRow, fromCol, toRow, toCol, true);
-        }
+    if (piece == PAWN) {
+        return isValidPawnMove(board, fromRow, fromCol, toRow, toCol, true);
     }
-    else if (targetPiece.symbol == EMPTY || targetPiece.isWhite == true) {
-        if (piece == PAWN) {
-            return isValidPawnMove(board, fromRow, fromCol, toRow, toCol, true);
-        }
-        else if (piece == KING) {
-            return isValidKingMove(board, fromRow, fromCol, toRow, toCol, true);
-        }
-        else if (piece == BISHOP) {
-            return isValidBishopMove(board, fromRow, fromCol, toRow, toCol, true);
-        }
-        else if (piece == ROOK) {
-            return isValidRookMove(board, fromRow, fromCol, toRow, toCol, true);
-        }
-        else if (piece == KNIGHT) {
-            return isValidKnightMove(board, fromRow, fromCol, toRow, toCol, true);
-        }
+    else if (piece == KING) {
+        return isValidKingMove(board, fromRow, fromCol, toRow, toCol, true);
     }
-
+    else if (piece == BISHOP) {
+        return isValidBishopMove(board, fromRow, fromCol, toRow, toCol, true);
+    }
+    else if (piece == ROOK) {
+        return isValidRookMove(board, fromRow, fromCol, toRow, toCol, true);
+    }
+    else if (piece == KNIGHT) {
+        return isValidKnightMove(board, fromRow, fromCol, toRow, toCol, true);
+    }
+       
     return false;
 }
 
@@ -321,9 +302,6 @@ bool isCheck(const std::vector<std::vector<Piece>>& board, int fromRow, int from
     if (board[fromRow][fromCol].isWhite != isWhite && board[fromRow][fromCol].symbol != EMPTY) {
         if (isValidMove(board, fromRow, fromCol, kingRow, kingCol, !isWhite)) {
             return true;  // Король под шахом
-        }
-        else if (board[fromRow][fromCol].symbol == std::tolower(PAWN) && kingRow == fromRow + 1 && (kingCol == fromCol + 1 || kingCol == fromCol - 1)) {
-            return true; 
         }
      }
 
@@ -496,7 +474,7 @@ int evaluateMove(std::vector<std::vector<Piece>> board, int fromRow, int fromCol
     return -100;
 }
 
-std::vector<std::pair<int, int>> findBestMoves(const std::vector<std::vector<Piece>>& board, bool isWhite) {
+std::vector<std::pair<int, int>> findBestMoves(const std::vector<std::vector<Piece>>& board, bool isWhite, int num) {
     // Создание вектор для хранения всех возможных ходов
     std::vector<std::pair<int, int>> allMoves;
 
@@ -525,7 +503,7 @@ std::vector<std::pair<int, int>> findBestMoves(const std::vector<std::vector<Pie
     });
 
     // Выбор лучших ходов
-    for (size_t i = 0; i < count_of_moves; ++i) {
+    for (size_t i = 0; i < num; ++i) {
         if (i < allMoves.size()) {
             bestMoves.push_back(allMoves[i]);
         }
@@ -605,14 +583,14 @@ int main() {
 
     // Поиск и вывод девяти лучших ходов
 
-    bestMoves = findBestMoves(board, isWhiteToMove);
+    bestMoves = findBestMoves(board, isWhiteToMove, count_of_moves);
 
     while (fromRow < BOARD_SIZE) {
         success = true;
         while (fromCol < BOARD_SIZE) {
             if (isCheck(board, fromRow, fromCol, !isWhiteToMove) || isCheck(board, fromRow, fromCol, isWhiteToMove) || bestMoves.size() < count_of_moves) {
                 generateRandomPosition(board, maxPieces);
-                bestMoves = findBestMoves(board, isWhiteToMove);
+                bestMoves = findBestMoves(board, isWhiteToMove, count_of_moves);
                 fromRow = 0;
                 fromCol = 0;
                 success = false;
@@ -665,7 +643,7 @@ int main() {
 
         for (int j = 0; j < 2; ++j) {
 
-            bestMoves = findBestMoves(temp_board, isWhiteToMove);
+            bestMoves = findBestMoves(temp_board, isWhiteToMove, count_of_moves*3);
             move_i = 0;
             
             isCheckPresent = false;
@@ -683,18 +661,12 @@ int main() {
             	break;
             }
             else {
-		move_i = 0;
-		    
 		while (flag && count(madeMoves.begin(), madeMoves.end(), bestMoves[move_i]) > 0) {
 		    move_i++;
 		    if (move_i == bestMoves.size()) {
 		        std::cout << "Других хороших ходов из данной позиции нет!" << std::endl << std::endl;
 			flag = false;
 	            }
-		}
-		    
-		if (!flag) {
-		    break;
 		}
             }
             
