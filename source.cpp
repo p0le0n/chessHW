@@ -635,6 +635,9 @@ int main() {
         temp_board[tr][tc].symbol = temp_board[fr][fc].symbol;
         temp_board[tr][tc].isWhite = true;
         temp_board[fr][fc].symbol = '.';
+        
+        if (temp_board[tr][tc].symbol == 'p' && tr == BOARD_SIZE-1) { temp_board[tr][tc].symbol = 'r'; }
+        if (temp_board[tr][tc].symbol == 'P' && tr == 0) { temp_board[tr][tc].symbol = 'R'; }
 
         printBoard(temp_board);
         std::cout << std::endl << std::endl;
@@ -682,6 +685,9 @@ int main() {
             temp_board[tr][tc].symbol = temp_board[fr][fc].symbol;
             temp_board[tr][tc].isWhite = true;
             temp_board[fr][fc].symbol = '.';
+            
+            if (temp_board[tr][tc].symbol == 'p' && tr == BOARD_SIZE-1) { temp_board[tr][tc].symbol = 'r'; }
+            if (temp_board[tr][tc].symbol == 'P' && tr == 0) { temp_board[tr][tc].symbol = 'R'; }
 
             printBoard(temp_board);
             std::cout << std::endl << std::endl;
